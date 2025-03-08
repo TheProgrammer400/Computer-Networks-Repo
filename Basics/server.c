@@ -20,27 +20,37 @@ int main() {
 
     // Create socket
     serverFd = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverFd == -1) error("Socket failed");
+
+    if (serverFd == -1) {
+        error("Socket failed");
+    }
 
     // Bind address
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
     serverAddr.sin_port = htons(PORT);
 
-    if (bind(serverFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1)
+    if (bind(serverFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1){
         error("Bind failed");
+    }
 
     // Listen for connections
-    if (listen(serverFd, 5) == -1) error("Listen failed");
+    if (listen(serverFd, 5) == -1){
+        error("Listen failed");
+    }
 
     printf("Server is listening on port %d...\n", PORT);
 
     // Accept client
     clientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientLen);
-    if (clientFd == -1) error("Accept failed");
+    
+    if (clientFd == -1) {
+        error("Accept failed");
+    }
 
     // Receive and echo message
     int bytesRead = read(clientFd, buffer, BUFFER_SIZE);
+
     if (bytesRead > 0) {
         buffer[bytesRead] = '\0';
         printf("Received: %s", buffer);

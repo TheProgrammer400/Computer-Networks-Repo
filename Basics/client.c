@@ -19,7 +19,10 @@ int main() {
 
     // Create socket
     sockFd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockFd == -1) error("Socket failed");
+
+    if (sockFd == -1) {
+        error("Socket failed");
+    }
 
     // Set server address
     serverAddr.sin_family = AF_INET;
@@ -27,8 +30,9 @@ int main() {
     serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     // Connect to server
-    if (connect(sockFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1)
+    if (connect(sockFd, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1){
         error("Connect failed");
+    }
 
     // Send message
     printf("Enter message: ");
@@ -37,6 +41,7 @@ int main() {
 
     // Receive echo
     int bytesRead = read(sockFd, buffer, BUFFER_SIZE);
+    
     if (bytesRead > 0) {
         buffer[bytesRead] = '\0';
         printf("Echoed: %s", buffer);

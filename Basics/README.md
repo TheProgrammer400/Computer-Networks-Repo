@@ -1,6 +1,6 @@
 # Basics of Server-Client
 
-## Breakdown of The Code
+## Breakdown of server.c Code
 
 ```C
 #include<stdio.h>
@@ -45,6 +45,11 @@ char buffer[BUFFER_SIZE];
 
 - `serverFd` → File descriptor (like an ID for the server socket).
 - `clientFd` → File descriptor for the accepted client.
+- `socklen_t` → Size of a socket address.
+    - It is a **data type** used to store the **size of a socket address structure**.
+    - Used in functions like `accept()` and `getsockname()` where you need to **pass or receive** the length of the address.
+    - The size of a socket address **can vary on different systems**.
+    - Instead of using `int` or `size_t`, `socklen_t` is a **special type** that makes sure it always works properly, no matter the platform.
 - `sockaddr_in` → A structure storing server & client address info.
 - `clientLen` → Stores size of `clientAddr` (needed for `accept()`).
 - `buffer` → Used to store received messages.
