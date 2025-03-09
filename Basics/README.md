@@ -74,6 +74,11 @@ if (serverFd == -1) {
     - This makes a **TCP socket**.
     - If we wanted a **UDP socket**, we'd have used `SOCK_DGRAM`.
 - If `socket()` fails, `serverFd` will be `-1`, so we print an error.
+- Significance of `0`:
+    - Represents **protocol to be used** with the socket.
+    - `0` tell system to **automatically pick the default protocol** for the given socket type.
+    - Since we used `SOCK_STREAM`, the system **automatically selects TCP**.
+    - If we had used `SOCK_DRAM`, it would've used **UDP**.
 
 ***
 
