@@ -78,7 +78,7 @@ if (serverFd == -1) {
     - Represents **protocol to be used** with the socket.
     - `0` tell system to **automatically pick the default protocol** for the given socket type.
     - Since we used `SOCK_STREAM`, the system **automatically selects TCP**.
-    - If we had used `SOCK_DRAM`, it would've used **UDP**.
+    - If we had used `SOCK_DGRAM`, it would've used **UDP**.
 
 ***
 
