@@ -1,200 +1,180 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include<unistd.h>
 #include<string.h>
 #include<arpa/inet.h>
-#include<unistd.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
 
-#define PORT 6000
+#define PORT 7000
+#define BUFFER_SIZE 1024
 
-char getIPClass(char *ip, int *network_size) {
-    unsigned char first_octet;
-    sscanf(ip, "%hhu", &first_octet);
+void validate_IP(char *ip, int arr[]){
+    int default_mask = 0;
+    char class;
+    char *a = ".";
+    char *token = strtok(ip, a);
+    int flag = 1;
+    int index = 0;
 
-    if (first_octet >= 1 && first_octet <= 126) {
-        *network_size = 16777216;
-        return 'A';
-    } else if (first_octet >= 128 && first_octet <= 191) {
-        *network_size = 65536;
-        return 'B';
-    } else if (first_octet >= 192 && first_octet <= 223) {
-        *network_size = 256;
-        return 'C';
-    }
+    while (token != NULL){
+        int num = atoi(token);
 
-    return 'X';
-}
+        if (num <= 255 && num >= 0){
+            if (num < 128){
+                class = 'A';
+                default_mask = 8;
+            } else if (num > 127 && num <= 191){
+                class = 'B';
+                default_mask = 16;
+            } else if (num > 191 && num <= 223){
+                class = 'C';
+                default_mask = 24;
+            } else if (num > 223 && num <= 239){
+                class = 'D';
+            } else {
+                class = 'E';
+            }
 
-int isValidIP(char *ip) {
-    int octets[4];
-
-    if (sscanf(ip, "%d.%d.%d.%d", &octets[0], &octets[1], &octets[2], &octets[3]) != 4) {
-        return 0;
-
-    }
-    
-    for (int i = 0; i < 4; i++) {
-        if (octets[i] < 0 || octets[i] > 255) {
-            return 0;
+            arr[index++] = num;
+        } else {
+            flag = 0;
         }
+
+        token = strtok(NULL, a);
     }
 
-    return 1;
-}
-
-void getNetworkAddress(char *ip, struct in_addr *network) {
-    unsigned char first_octet, second_octet, third_octet;
-    sscanf(ip, "%hhu.%hhu.%hhu", &first_octet, &second_octet, &third_octet);
-
-    if (first_octet >= 1 && first_octet <= 126) {
-        *network = (struct in_addr) { htonl((first_octet << 24)) };
-    } else if (first_octet >= 128 && first_octet <= 191) {
-        *network = (struct in_addr) { htonl((first_octet << 24) | (second_octet << 16)) };
-    } else if (first_octet >= 192 && first_octet <= 223) {
-        *network = (struct in_addr) { htonl((first_octet << 24) | (second_octet << 16) | (third_octet << 8)) };
+    if (flag == 0) {
+        printf("Invalid IP\n");
+        exit(1);
+    } else {
+        printf("The given IP is Correct\n");
+        printf("Class of the Given IP : %c\n", class);
+        printf("Default Network Mask : %d\n", default_mask);
     }
 }
 
-int nextPowerOf2(int n) {
-    int p = 1;
+int power_of_2(int n) {
+    if (n == 0) {
+        return 1;
+    }
 
-    while (p < n) {
-        p *= 2;
+    n--;
+
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    return n + 1;
+}
+
+int power(int a){
+    int p = 0;
+
+    while (a > 1)
+    {
+        a >>= 1;
+        p++;
     }
     return p;
 }
 
-int calculateSubnetMask(int size) {
-    int host_bits = 0;
-    
-    while ((1 << host_bits) < size) {
-        host_bits++;
-    }
-    return 32 - host_bits;
-}
-
-void createSubnets(char *ip, int *sizes, int num_subnets, char *response) {
-    struct in_addr base_ip;
-    int total_network_size;
-    char ip_class = getIPClass(ip, &total_network_size);
-    getNetworkAddress(ip, &base_ip);
-
-    char net_addr[16];
-    inet_ntop(AF_INET, &base_ip, net_addr, sizeof(net_addr));
-
-    sprintf(response + strlen(response), "Valid IP Address: %s\n", ip);
-    sprintf(response + strlen(response), "IP Class: %c\n", ip_class);
-    sprintf(response + strlen(response), "Network Address: %s\nSubnets:\n", net_addr);
-
-    int assigned_ips = 0;
-
-    for (int i = 0; i < num_subnets; i++) {
-        char first_ip[16], last_ip[16];
-        int needed_hosts = sizes[i];
-        int subnet_size = nextPowerOf2(needed_hosts + 2);
-        int mask = calculateSubnetMask(subnet_size);
-
-        struct in_addr first, last;
-        first.s_addr = base_ip.s_addr;
-        last.s_addr = base_ip.s_addr + htonl(subnet_size - 1);
-
-        inet_ntop(AF_INET, &first, first_ip, sizeof(first_ip));
-        inet_ntop(AF_INET, &last, last_ip, sizeof(last_ip));
-
-        sprintf(response + strlen(response), "Subnet %d: %s/%d to %s/%d\n", i + 1, first_ip, mask, last_ip, mask);
-
-        base_ip.s_addr = htonl(ntohl(base_ip.s_addr) + subnet_size);
-        assigned_ips += subnet_size;
-    }
-
-    int unassigned_ips = total_network_size - assigned_ips;
-
-    sprintf(response + strlen(response), "\nTotal Assigned IPs: %d\n", assigned_ips);
-    sprintf(response + strlen(response), "Unassigned IPs: %d\n", unassigned_ips);
-
-    char available_start[16], available_end[16];
-    inet_ntop(AF_INET, &base_ip, available_start, sizeof(available_start));
-
-    struct in_addr last_available;
-
-    last_available.s_addr = base_ip.s_addr + htonl(unassigned_ips - 1);
-    inet_ntop(AF_INET, &last_available, available_end, sizeof(available_end));
-
-    sprintf(response + strlen(response), "Available IP Range: %s - %s\n", available_start, available_end);
-    printf("\nServer Output:\n%s", response);
-}
-
 int main() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    char ip[16];
     int num_subnets;
-    int *subnet_sizes;
-    char response[2048] = { 0 };
+    int ip[4];
+    char buffer[BUFFER_SIZE];
+    int server_socket;
+    int client_server;
+    struct sockaddr_in address;
+    int subnet_mask;
+    socklen_t addr_len = sizeof(address);
 
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("Socket failed");
-        exit(EXIT_FAILURE);
-    }
-
+    server_socket = socket(AF_INET, SOCK_STREAM, 0);
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = htonl(INADDR_ANY);
     address.sin_port = htons(PORT);
 
-    if (bind(server_fd, (struct sockaddr *) &address, sizeof(address)) < 0) {
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
-    }
+    bind(server_socket, (struct sockaddr *)&address, addr_len);
+    listen(server_socket, 10);
+    printf("Server is Listening to Port %d\n", PORT);
 
-    if (listen(server_fd, 3) < 0) {
-        perror("Listen failed");
-        exit(EXIT_FAILURE);
-    }
+    client_server = accept(server_socket, (struct sockaddr *)&address, &addr_len);
+    printf("Connected to the Client\n");
 
-    printf("Server is running on port %d...\n", PORT);
+    int bytes = recv(client_server, buffer, BUFFER_SIZE, 0);
+    validate_IP(buffer, ip);
 
-    if ((new_socket = accept(server_fd, (struct sockaddr *) &address, (socklen_t *) &addrlen)) < 0) {
-        perror("Accept failed");
-        exit(EXIT_FAILURE);
-    }
+    bytes = recv(client_server, &num_subnets, sizeof(num_subnets), 0);
+    printf("Number of Subnets = %d\n", num_subnets);
 
-    read(new_socket, ip, sizeof(ip));
-    printf("Received IP: %s\n", ip);
+    int size[num_subnets];
+    printf("Subnet Sizes: ");
 
-    if (!isValidIP(ip)) {
-        strcpy(response, "Invalid IP address\n");
-        printf("Invalid IP address received\n");
-        send(new_socket, response, strlen(response), 0);
-        close(new_socket);
-        close(server_fd);
-        return 0;
-    }
-
-    read(new_socket, &num_subnets, sizeof(num_subnets));
-    printf("Received number of subnets: %d\n", num_subnets);
-
-    subnet_sizes = (int *) malloc(num_subnets * sizeof(int));
-
-    if (!subnet_sizes) {
-        perror("Memory allocation failed");
-        exit(EXIT_FAILURE);
-    }
-
-    read(new_socket, subnet_sizes, num_subnets * sizeof(int));
-    printf("Received subnet sizes: ");
-
-    for (int i = 0; i < num_subnets; i++) {
-        printf("%d ", subnet_sizes[i]);
+    for (int i = 0; i < num_subnets; i++){
+        bytes = recv(client_server, &size[i], sizeof(int), 0); // Correct size
+        printf("%d ", size[i]);
     }
 
     printf("\n");
 
-    createSubnets(ip, subnet_sizes, num_subnets, response);
+    printf("Number of Addresses Alloted to each Subnet: ");
 
-    send(new_socket, response, strlen(response), 0);
-    free(subnet_sizes);
-    close(new_socket);
-    close(server_fd);
+    for (int i = 0; i < num_subnets; i++) {
+        size[i] = power_of_2(size[i]);
+        printf("%d ", size[i]);
+    }
 
+    printf("\n");
+
+    int current_ip[4] = {ip[0], ip[1], ip[2], ip[3]};
+
+    for (int i = 0; i < num_subnets; i++){
+        subnet_mask = 32 - power(size[i]);
+
+        int subnet_start = current_ip[3];
+        int subnet_end = current_ip[3] + size[i] - 1;
+
+        // Adjust the subnet end if it exceeds 255
+        while (subnet_end > 255)
+        {
+            int overflow = subnet_end - 255;
+            current_ip[3] = 255;
+            current_ip[2]++;
+            subnet_end = overflow - 1;
+        }
+
+        // Print the IP range for the subnet
+        printf("IP Range for Subnet-%d: %d.%d.%d.%d - %d.%d.%d.%d\n",
+               i + 1, current_ip[0], current_ip[1], current_ip[2], subnet_start,
+               current_ip[0], current_ip[1], current_ip[2], subnet_end);
+
+        // Update the current_ip for the next subnet
+        current_ip[3] = subnet_end + 1;
+
+        // Handle overflow in octets
+        while (current_ip[3] > 255)
+        {
+            current_ip[3] -= 256;
+            current_ip[2]++;
+        }
+
+        // Handle overflow in second octet
+        while (current_ip[2] > 255)
+        {
+            current_ip[2] -= 256;
+            current_ip[1]++;
+        }
+
+        // Handle overflow in first octet
+        while (current_ip[1] > 255)
+        {
+            current_ip[1] -= 256;
+            current_ip[0]++;
+        }
+    }
+    close(server_socket);
+    close(client_server);
     return 0;
 }

@@ -38,6 +38,7 @@ int main() {
                 } else {
                     arr[n] = '0';
                 }
+                
                 arr[n + 1] = '\0';
 
             } else {

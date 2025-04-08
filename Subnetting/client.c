@@ -1,56 +1,45 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<arpa/inet.h>
-#include<unistd.h>
 
-#define PORT 6000
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
+#define BUFFER_SIZE 1024
+#define PORT 7000
 
 int main(){
-    int sock = 0;
-    struct sockaddr_in serv_addr;
-    char ip[16];
-    int num_subnets;
-    int *subnet_sizes;
+    int sock;
+    struct sockaddr_in address;
+    socklen_t addr_len = sizeof(address);
 
-    if((sock=socket(AF_INET, SOCK_STREAM ,0)) < 0){
-        printf("\nSocket creation error\n");
-        return -1;
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(PORT);
+
+    connect(sock, (struct sockaddr *)&address, addr_len);
+
+    printf("Connected to the server :- \n");
+    printf("Enter the IP Address : ");
+
+    char ip[100];
+    scanf("%s", ip);
+    send(sock, ip, strlen(ip), 0);
+
+    int num;
+    printf("Enter the Number of Subnets : ");
+    scanf("%d", &num);
+    send(sock, &num, sizeof(int), 0);
+
+    for (int i = 0; i < num; i++){
+        printf("Enter the Size of Subnet-%d : ", i + 1);
+        
+        int a;
+        scanf("%d", &a);
+        send(sock, &a, sizeof(int), 0);
     }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-
-    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0){
-        printf("\nInvalid address/Address not supported\n");
-        return -1;
-    }
-
-    if(connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr))<0){
-        printf("\nConnection Failed\n");
-        return -1;
-    }
-
-    printf("Enter IP address (without /prefix): ");
-    scanf("%s",ip);
-
-    printf("Enter the number of subnets: ");
-    scanf("%d",&num_subnets);
-
-    subnet_sizes=(int*)malloc(num_subnets * sizeof(int));
-
-    printf("Enter size of %d subnets: ",num_subnets);
-
-    for(int i=0; i<num_subnets; i++){
-        scanf("%d",&subnet_sizes[i]);
-    }
-
-    send(sock, ip, sizeof(ip), 0);
-    send(sock, &num_subnets, sizeof(num_subnets),0);
-    send(sock, subnet_sizes, num_subnets*sizeof(int), 0);
-
-    free(subnet_sizes);
+    
     close(sock);
-
     return 0;
 }
