@@ -10,8 +10,8 @@
 #define PORT 7000
 #define BUFFER_SIZE 1024
 
-void validate_IP(char *ip, int arr[]){
-    int default_mask = 0;
+void validateIP(char *ip, int arr[]){
+    int defaultMask = 0;
     char class;
     char *a = ".";
     char *token = strtok(ip, a);
@@ -24,13 +24,13 @@ void validate_IP(char *ip, int arr[]){
         if (num <= 255 && num >= 0){
             if (num < 128){
                 class = 'A';
-                default_mask = 8;
+                defaultMask = 8;
             } else if (num > 127 && num <= 191){
                 class = 'B';
-                default_mask = 16;
+                defaultMask = 16;
             } else if (num > 191 && num <= 223){
                 class = 'C';
-                default_mask = 24;
+                defaultMask = 24;
             } else if (num > 223 && num <= 239){
                 class = 'D';
             } else {
@@ -51,7 +51,7 @@ void validate_IP(char *ip, int arr[]){
     } else {
         printf("The given IP is Correct\n");
         printf("Class of the Given IP : %c\n", class);
-        printf("Default Network Mask : %d\n", default_mask);
+        printf("Default Network Mask : %d\n", defaultMask);
     }
 }
 
@@ -62,58 +62,58 @@ int power_of_2(int n) {
 
     n--;
 
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
+    n = n | n >> 1;
+    n = n | n >> 2;
+    n = n | n >> 4;
+    n = n | n >> 8;
+    n = n | n >> 16;
+
     return n + 1;
 }
 
 int power(int a){
     int p = 0;
 
-    while (a > 1)
-    {
+    while (a > 1){
         a >>= 1;
         p++;
     }
+
     return p;
 }
 
-int main() {
-    int num_subnets;
+int main(){
+    int numSubnets;
     int ip[4];
     char buffer[BUFFER_SIZE];
-    int server_socket;
-    int client_server;
-    struct sockaddr_in address;
-    int subnet_mask;
-    socklen_t addr_len = sizeof(address);
+    int serverFd, clientFd;
+    struct sockaddr_in serverAddr;
+    int subnetMask;
+    socklen_t addrLen = sizeof(serverAddr);
 
-    server_socket = socket(AF_INET, SOCK_STREAM, 0);
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_ANY);
-    address.sin_port = htons(PORT);
+    serverFd = socket(AF_INET, SOCK_STREAM, 0);
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serverAddr.sin_port = htons(PORT);
 
-    bind(server_socket, (struct sockaddr *)&address, addr_len);
-    listen(server_socket, 10);
+    bind(serverFd, (struct sockaddr *)&serverAddr, addrLen);
+    listen(serverFd, 10);
     printf("Server is Listening to Port %d\n", PORT);
 
-    client_server = accept(server_socket, (struct sockaddr *)&address, &addr_len);
+    clientFd = accept(serverFd, (struct sockaddr *)&serverAddr, &addrLen);
     printf("Connected to the Client\n");
 
-    int bytes = recv(client_server, buffer, BUFFER_SIZE, 0);
-    validate_IP(buffer, ip);
+    int bytes = recv(clientFd, buffer, BUFFER_SIZE, 0);
+    validateIP(buffer, ip);
 
-    bytes = recv(client_server, &num_subnets, sizeof(num_subnets), 0);
-    printf("Number of Subnets = %d\n", num_subnets);
+    bytes = recv(clientFd, &numSubnets, sizeof(numSubnets), 0);
+    printf("Number of Subnets = %d\n", numSubnets);
 
-    int size[num_subnets];
+    int size[numSubnets];
     printf("Subnet Sizes: ");
 
-    for (int i = 0; i < num_subnets; i++){
-        bytes = recv(client_server, &size[i], sizeof(int), 0); // Correct size
+    for (int i = 0; i < numSubnets; i++){
+        bytes = recv(clientFd, &size[i], sizeof(int), 0); // Correct size
         printf("%d ", size[i]);
     }
 
@@ -121,60 +121,58 @@ int main() {
 
     printf("Number of Addresses Alloted to each Subnet: ");
 
-    for (int i = 0; i < num_subnets; i++) {
+    for (int i = 0; i < numSubnets; i++){
         size[i] = power_of_2(size[i]);
         printf("%d ", size[i]);
     }
 
     printf("\n");
 
-    int current_ip[4] = {ip[0], ip[1], ip[2], ip[3]};
+    int currentIP[4] = {ip[0], ip[1], ip[2], ip[3]};
 
-    for (int i = 0; i < num_subnets; i++){
-        subnet_mask = 32 - power(size[i]);
+    for (int i = 0; i < numSubnets; i++){
+        subnetMask = 32 - power(size[i]);
 
-        int subnet_start = current_ip[3];
-        int subnet_end = current_ip[3] + size[i] - 1;
+        int subnet_start = currentIP[3];
+        int subnet_end = currentIP[3] + size[i] - 1;
 
         // Adjust the subnet end if it exceeds 255
-        while (subnet_end > 255)
-        {
+        while (subnet_end > 255){
             int overflow = subnet_end - 255;
-            current_ip[3] = 255;
-            current_ip[2]++;
+
+            currentIP[3] = 255;
+            currentIP[2]++;
             subnet_end = overflow - 1;
         }
 
         // Print the IP range for the subnet
         printf("IP Range for Subnet-%d: %d.%d.%d.%d - %d.%d.%d.%d\n",
-               i + 1, current_ip[0], current_ip[1], current_ip[2], subnet_start,
-               current_ip[0], current_ip[1], current_ip[2], subnet_end);
+               i + 1, currentIP[0], currentIP[1], currentIP[2], subnet_start,
+               currentIP[0], currentIP[1], currentIP[2], subnet_end);
 
         // Update the current_ip for the next subnet
-        current_ip[3] = subnet_end + 1;
+        currentIP[3] = subnet_end + 1;
 
         // Handle overflow in octets
-        while (current_ip[3] > 255)
-        {
-            current_ip[3] -= 256;
-            current_ip[2]++;
+        while (currentIP[3] > 255){
+            currentIP[3] -= 256;
+            currentIP[2]++;
         }
 
         // Handle overflow in second octet
-        while (current_ip[2] > 255)
-        {
-            current_ip[2] -= 256;
-            current_ip[1]++;
+        while (currentIP[2] > 255){
+            currentIP[2] -= 256;
+            currentIP[1]++;
         }
 
         // Handle overflow in first octet
-        while (current_ip[1] > 255)
-        {
-            current_ip[1] -= 256;
-            current_ip[0]++;
+        while (currentIP[1] > 255){
+            currentIP[1] -= 256;
+            currentIP[0]++;
         }
     }
-    close(server_socket);
-    close(client_server);
+
+    close(serverFd);
+    close(clientFd);
     return 0;
 }
